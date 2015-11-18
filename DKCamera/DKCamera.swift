@@ -4,6 +4,7 @@
 //
 //  Created by ZhangAo on 15/8/30.
 //  Copyright (c) 2015年 ZhangAo. All rights reserved.
+//  Editted by A&D
 //
 
 import UIKit
@@ -11,7 +12,7 @@ import AVFoundation
 import CoreMotion
 
 public class DKCamera: UIViewController {
-
+    
     public var didCancelled: (() -> Void)?
     public var didFinishCapturingImage: ((image: UIImage) -> Void)?
     
@@ -37,6 +38,8 @@ public class DKCamera: UIViewController {
     private var captureDeviceFront: AVCaptureDevice?
     private var captureDeviceBack: AVCaptureDevice?
     
+    private var cover: UIView!
+    
     private var currentOrientation = UIInterfaceOrientation.Portrait
     private let motionManager = CMMotionManager()
     
@@ -50,7 +53,7 @@ public class DKCamera: UIViewController {
     
     override public func viewDidLoad() {
         super.viewDidLoad()
-
+        
         self.setupDevices()
         self.setupUI()
         self.beginSession()
@@ -64,7 +67,7 @@ public class DKCamera: UIViewController {
         if !self.captureSession.running {
             self.captureSession.startRunning()
         }
-
+        
         if !self.motionManager.accelerometerActive {
             self.motionManager.startAccelerometerUpdatesToQueue(NSOperationQueue.currentQueue()!, withHandler: { (accelerometerData, error) -> Void in
                 if error == nil {
@@ -74,7 +77,7 @@ public class DKCamera: UIViewController {
                 }
             })
         }
-
+        
     }
     
     public override func viewDidDisappear(animated: Bool) {
@@ -83,7 +86,7 @@ public class DKCamera: UIViewController {
         self.captureSession.stopRunning()
         self.motionManager.stopAccelerometerUpdates()
     }
-
+    
     override public func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
@@ -108,7 +111,7 @@ public class DKCamera: UIViewController {
     private func setupUI() {
         self.view.backgroundColor = UIColor.blackColor()
         let contentView = self.view
-
+        
         if let cameraOverlayView = self.cameraOverlayView {
             self.view.addSubview(cameraOverlayView)
         }
@@ -192,7 +195,32 @@ public class DKCamera: UIViewController {
         
         self.flashButton.frame.origin = CGPoint(x: 5, y: 15)
         contentView.addSubview(self.flashButton)
+        
+        // Flashbulb
+        cover = UIView(frame: self.view.frame)
+        cover.backgroundColor = UIColor.whiteColor()
+        cover.alpha = 0
+        
+        contentView.addSubview(cover)
     }
+    
+    
+    internal func flashbulb() {
+        UIView.animateWithDuration(0.1,
+            animations: {
+                self.cover.alpha = 0.9
+            },
+            completion: { finished in
+                UIView.animateWithDuration(0.05,
+                    animations: {
+                        self.cover.alpha = 0.0
+                    },
+                    completion: { finished in
+                        print("flashBulb")
+                })
+        })
+    }
+    
     
     // MARK: - Callbacks
     
@@ -202,7 +230,9 @@ public class DKCamera: UIViewController {
         }
     }
     
+    
     internal func takePicture() {
+        self.flashbulb()
         if let stillImageOutput = self.captureSession.outputs.first as? AVCaptureStillImageOutput {
             dispatch_async(dispatch_get_global_queue(0, 0), { () -> Void in
                 let connection = stillImageOutput.connectionWithMediaType(AVMediaTypeVideo)
@@ -217,10 +247,10 @@ public class DKCamera: UIViewController {
                     
                     if error == nil {
                         let imageData = AVCaptureStillImageOutput.jpegStillImageNSDataRepresentation(imageDataSampleBuffer)
-                                                
+                        
                         if let didFinishCapturingImage = self.didFinishCapturingImage,
                             image = UIImage(data: imageData) {
-
+                                
                                 didFinishCapturingImage(image: image)
                         }
                     } else {
@@ -371,8 +401,8 @@ public class DKCamera: UIViewController {
             UIView.animateWithDuration(0.7, delay: 0, usingSpringWithDamping: 0.5, initialSpringVelocity: 1.1,
                 options: .CurveEaseInOut, animations: { () -> Void in
                     FocusView.focusView.transform = CGAffineTransformScale(CGAffineTransformIdentity, 0.6, 0.6)
-            }) { (Bool) -> Void in
-                FocusView.focusView.removeFromSuperview()
+                }) { (Bool) -> Void in
+                    FocusView.focusView.removeFromSuperview()
             }
         }
         
@@ -385,19 +415,19 @@ public class DKCamera: UIViewController {
         showFocusViewAtPoint(touchPoint)
         
         if let currentDevice = self.currentDevice {
-                try! currentDevice.lockForConfiguration()
-                currentDevice.focusPointOfInterest = focusPoint
-                currentDevice.exposurePointOfInterest = focusPoint
-                
-                    currentDevice.focusMode = .ContinuousAutoFocus
-
-                if currentDevice.isExposureModeSupported(.ContinuousAutoExposure) {
-                    currentDevice.exposureMode = .ContinuousAutoExposure
-                }
-
-                currentDevice.unlockForConfiguration()
+            try! currentDevice.lockForConfiguration()
+            currentDevice.focusPointOfInterest = focusPoint
+            currentDevice.exposurePointOfInterest = focusPoint
+            
+            currentDevice.focusMode = .ContinuousAutoFocus
+            
+            if currentDevice.isExposureModeSupported(.ContinuousAutoExposure) {
+                currentDevice.exposureMode = .ContinuousAutoExposure
+            }
+            
+            currentDevice.unlockForConfiguration()
         }
-
+        
     }
     
     // MARK: - Handles Orientation
@@ -470,7 +500,7 @@ private extension UIInterfaceOrientation {
     func toAVCaptureVideoOrientation() -> AVCaptureVideoOrientation {
         return AVCaptureVideoOrientation(rawValue: self.rawValue)!
     }
-
+    
 }
 
 private func degreesToRadians(degree: Double) -> CGFloat {
