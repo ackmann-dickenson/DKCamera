@@ -183,7 +183,8 @@ public class DKCamera: UIViewController {
         let cancelButton: UIButton = {
             let cancelButton = UIButton()
             cancelButton.addTarget(self, action: "dismiss", forControlEvents: .TouchUpInside)
-            cancelButton.setImage(DKCameraResource.cameraCancelImage(), forState: .Normal)
+            //cancelButton.setImage(DKCameraResource.cameraCancelImage(), forState: .Normal)
+            cancelButton.setTitle("Done", forState: UIControlState.Normal)
             cancelButton.sizeToFit()
             
             return cancelButton
