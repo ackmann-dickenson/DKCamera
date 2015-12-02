@@ -10,13 +10,15 @@
 import UIKit
 import AVFoundation
 import CoreMotion
+import ImageIO
 
 public class DKCamera: UIViewController {
     
     public var didCancelled: (() -> Void)?
-    public var didFinishCapturingImage: ((image: UIImage) -> Void)?
+    public var didFinishCapturingImage: ((image:UIImage) -> Void)?
     
     public var cameraOverlayView: UIView?
+    public var cameraInfo: NSDictionary?
     
     /// The flashModel will to be remembered to next use.
     public var flashMode:AVCaptureFlashMode! {
@@ -248,10 +250,10 @@ public class DKCamera: UIViewController {
                     
                     if error == nil {
                         let imageData = AVCaptureStillImageOutput.jpegStillImageNSDataRepresentation(imageDataSampleBuffer)
-                        
+                        let exifDictRef = CMGetAttachment(imageDataSampleBuffer, kCGImagePropertyExifDictionary, nil) as! CFDictionaryRef
+                        self.cameraInfo = exifDictRef as CFDictionary
                         if let didFinishCapturingImage = self.didFinishCapturingImage,
-                            image = UIImage(data: imageData) {
-                                
+                            image = UIImage(data: imageData){
                                 didFinishCapturingImage(image: image)
                         }
                     } else {
