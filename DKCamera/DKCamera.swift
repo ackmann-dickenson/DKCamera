@@ -15,11 +15,10 @@ import ImageIO
 public class DKCamera: UIViewController {
     
     public var didCancelled: (() -> Void)?
-    public var didFinishCapturingImage: ((image:UIImage) -> Void)?
-    
+    public var didFinishCapturingImage: ((image: UIImage, cameraInfo: NSDictionary) -> Void)?
+
     public var cameraOverlayView: UIView?
-    public var cameraInfo: NSDictionary?
-    
+
     /// The flashModel will to be remembered to next use.
     public var flashMode:AVCaptureFlashMode! {
         didSet {
@@ -52,6 +51,7 @@ public class DKCamera: UIViewController {
         return flashButton
     }()
     private var cameraSwitchButton: UIButton!
+    private var cancelButton: UIButton!
     
     override public func viewDidLoad() {
         super.viewDidLoad()
@@ -93,7 +93,11 @@ public class DKCamera: UIViewController {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
     }
-    
+
+    override public func preferredStatusBarStyle() -> UIStatusBarStyle {
+        return .LightContent
+    }
+
     private func setupDevices() {
         let devices = AVCaptureDevice.devicesWithMediaType(AVMediaTypeVideo) as! [AVCaptureDevice]
         
@@ -150,7 +154,7 @@ public class DKCamera: UIViewController {
                     self.backgroundColor = UIColor.whiteColor()
                     return true
                 }
-                
+
                 private override func continueTrackingWithTouch(touch: UITouch, withEvent event: UIEvent?) -> Bool {
                     self.backgroundColor = UIColor.whiteColor()
                     return true
@@ -195,6 +199,7 @@ public class DKCamera: UIViewController {
         cancelButton.frame.origin = CGPoint(x: contentView.bounds.width - cancelButton.bounds.width - 15, y: 25)
         cancelButton.autoresizingMask = [.FlexibleBottomMargin, .FlexibleLeftMargin]
         contentView.addSubview(cancelButton)
+        self.cancelButton = cancelButton
         
         self.flashButton.frame.origin = CGPoint(x: 5, y: 15)
         contentView.addSubview(self.flashButton)
@@ -223,8 +228,7 @@ public class DKCamera: UIViewController {
                 })
         })
     }
-    
-    
+
     // MARK: - Callbacks
     
     internal func dismiss() {
@@ -232,39 +236,35 @@ public class DKCamera: UIViewController {
             didCancelled()
         }
     }
-    
-    
+
     internal func takePicture() {
         self.flashbulb()
         if let stillImageOutput = self.captureSession.outputs.first as? AVCaptureStillImageOutput {
-            dispatch_async(dispatch_get_global_queue(0, 0), { () -> Void in
-                let connection = stillImageOutput.connectionWithMediaType(AVMediaTypeVideo)
-                
-                if connection == nil {
+            dispatch_async(dispatch_get_global_queue(0, 0)) {
+                guard let connection = stillImageOutput.connectionWithMediaType(AVMediaTypeVideo) else {
                     return
                 }
-                
+
                 connection.videoOrientation = self.currentOrientation.toAVCaptureVideoOrientation()
                 
-                stillImageOutput.captureStillImageAsynchronouslyFromConnection(connection, completionHandler: { (imageDataSampleBuffer, error: NSError?) -> Void in
-                    
+                stillImageOutput.captureStillImageAsynchronouslyFromConnection(connection) {
+                    imageDataSampleBuffer, error in
+
                     if error == nil {
                         let imageData = AVCaptureStillImageOutput.jpegStillImageNSDataRepresentation(imageDataSampleBuffer)
                         let exifDictRef = CMGetAttachment(imageDataSampleBuffer, kCGImagePropertyExifDictionary, nil) as! CFDictionaryRef
-                        self.cameraInfo = exifDictRef as CFDictionary
-                        if let didFinishCapturingImage = self.didFinishCapturingImage,
-                            image = UIImage(data: imageData){
-                                didFinishCapturingImage(image: image)
+                        let cameraInfo = exifDictRef as CFDictionary
+                        if let image = UIImage(data: imageData) {
+                            self.didFinishCapturingImage?(image: image, cameraInfo: cameraInfo)
                         }
                     } else {
                         print("error while capturing still image: \(error!.localizedDescription)", terminator: "")
                     }
-                })
-            })
+                }
+            }
         }
-        
     }
-    
+
     // MARK: - Handles Focus
     
     public override func touchesBegan(touches: Set<UITouch>, withEvent event: UIEvent?) {
@@ -483,17 +483,17 @@ public class DKCamera: UIViewController {
         UIView.animateWithDuration(0.2) { () -> Void in
             self.flashButton.transform = rotateAffineTransform
             self.cameraSwitchButton.transform = rotateAffineTransform
+            self.cancelButton.transform = rotateAffineTransform
         }
     }
-    
+
     public override func shouldAutorotate() -> Bool {
         return false
     }
     
     public override func supportedInterfaceOrientations() -> UIInterfaceOrientationMask {
-        return UIInterfaceOrientationMask.Portrait
+        return .Portrait
     }
-    
 }
 
 // MARK: - Utilities
